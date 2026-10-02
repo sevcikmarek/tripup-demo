@@ -163,17 +163,18 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     case "CONFIRM_EXPENSE": {
       const amount = Number(state.expenseDraft.amount);
       if (!amount || state.expenseDraft.participantIds.length === 0) return state;
+      const dinnerExpense: Expense = {
+        id: "dinner-expense",
+        description: state.expenseDraft.description || "Dinner",
+        amount,
+        payerId: state.expenseDraft.payerId,
+        participantIds: state.expenseDraft.participantIds,
+      };
       return {
         ...state,
         expenses: [
-          ...state.expenses,
-          {
-            id: "dinner-expense",
-            description: state.expenseDraft.description || "Dinner",
-            amount,
-            payerId: state.expenseDraft.payerId,
-            participantIds: state.expenseDraft.participantIds,
-          },
+          ...state.expenses.filter((expense) => expense.id !== dinnerExpense.id),
+          dinnerExpense,
         ],
         screen: "settle",
       };

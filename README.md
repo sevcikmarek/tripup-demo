@@ -22,6 +22,8 @@ Desktop controls can switch between Ari and Maya so balances, “you” labels, 
 
 The desktop expense field uses a dedicated translucent numeric keypad with iOS-style number and letter groupings. Mobile continues to use the device’s native decimal keyboard.
 
+Direct step navigation preserves the expected demo story: entering settlement prepares the dinner expense if it has not yet been confirmed, and revisiting the split updates that expense instead of duplicating it. The desktop keypad can be dismissed with Done and reopened by selecting the amount.
+
 ## Local development
 
 ```bash

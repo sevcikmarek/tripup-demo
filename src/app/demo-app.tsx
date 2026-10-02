@@ -186,13 +186,13 @@ function VoteScreen({ state, vote, submit }: { state: DemoState; vote: (id: stri
   );
 }
 
-function ExpenseScreen({ state, setAmount, setDescription, isMobile, goToSplit }: { state: DemoState; setAmount: (value: string) => void; setDescription: (value: string) => void; isMobile: boolean; goToSplit: () => void }) {
+function ExpenseScreen({ state, setAmount, setDescription, isMobile, openKeyboard, goToSplit }: { state: DemoState; setAmount: (value: string) => void; setDescription: (value: string) => void; isMobile: boolean; openKeyboard: () => void; goToSplit: () => void }) {
   const payer = state.members.find((member) => member.id === state.expenseDraft.payerId)!;
   return (
     <div className="screen expense-screen">
       <h2>Add expense</h2>
       <label className="expense-name"><input value={state.expenseDraft.description} readOnly={!isMobile} onChange={(event) => setDescription(event.target.value)} placeholder="What was it for?" aria-label="Expense description" /></label>
-      <div className="amount-input"><span>€</span><input value={state.expenseDraft.amount} readOnly={!isMobile} inputMode="decimal" onChange={(event) => setAmount(event.target.value)} aria-label="Expense amount" /></div>
+      <div className="amount-input"><span>€</span><input value={state.expenseDraft.amount} readOnly={!isMobile} inputMode="decimal" onFocus={openKeyboard} onClick={openKeyboard} onChange={(event) => setAmount(event.target.value)} aria-label="Expense amount" /></div>
       <div className="expense-meta"><span>Paid by</span><button><Avatar member={payer} small /> you</button><span>split</span><button>equally</button></div>
       <button className="primary-action bottom-action" onClick={goToSplit}>Review split</button>
     </div>
@@ -306,19 +306,20 @@ function HomeScreen({ state, openApp, lock }: { state: DemoState; openApp: () =>
   );
 }
 
-function MockKeyboard({ mode, value, onChange }: { mode: "number" | null; value: string; onChange: (value: string) => void }) {
+function MockKeyboard({ mode, value, onChange, onDone }: { mode: "number" | null; value: string; onChange: (value: string) => void; onDone: () => void }) {
   if (!mode) return null;
   const keys = [
     ["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"],
     ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], [".", ""], ["0", ""], ["⌫", ""],
   ];
-  return <div className="mock-keyboard numeric-keyboard" aria-hidden="true"><div className="keyboard-glass-bar"><span>TripUp</span><button tabIndex={-1}>Done</button></div>{keys.map(([key, letters]) => <button key={key} tabIndex={-1} className={key === "⌫" ? "delete-key" : ""} onClick={() => onChange(key === "⌫" ? value.slice(0,-1) : `${value}${key}`)}><strong>{key}</strong>{letters && <small>{letters}</small>}</button>)}</div>;
+  return <div className="mock-keyboard numeric-keyboard" aria-label="Numeric keyboard"><div className="keyboard-glass-bar"><span>TripUp</span><button type="button" onClick={onDone}>Done</button></div>{keys.map(([key, letters]) => <button type="button" key={key} aria-label={key === "⌫" ? "Delete" : key === "." ? "Decimal point" : key} className={key === "⌫" ? "delete-key" : ""} onClick={() => onChange(key === "⌫" ? value.slice(0,-1) : `${value}${key}`)}><strong>{key}</strong>{letters && <small>{letters}</small>}</button>)}</div>;
 }
 
 export default function DemoApp() {
   const [state, dispatch] = useReducer(demoReducer, undefined, createInitialState);
   const [inviteQuery, setInviteQuery] = useState("Ren");
   const [deviceView, setDeviceView] = useState<DeviceView>("app");
+  const [keyboardOpen, setKeyboardOpen] = useState(true);
   const isMobile = useIsMobile();
   const activeIndex = screenOrder.indexOf(state.screen);
   const effectiveDeviceView: DeviceView = isMobile ? "app" : deviceView;
@@ -327,10 +328,16 @@ export default function DemoApp() {
     dispatch({ type: "RESET" });
     setInviteQuery("Ren");
     setDeviceView("app");
+    setKeyboardOpen(true);
   }
 
   function goTo(screen: ScreenId) {
     if (screenOrder.indexOf(screen) >= screenOrder.indexOf("dinner") && !state.invitedRen) dispatch({ type: "INVITE_REN" });
+    if (screen === "expense") setKeyboardOpen(true);
+    if (screen === "settle" && state.expenses.length === 0) {
+      dispatch({ type: "CONFIRM_EXPENSE" });
+      return;
+    }
     dispatch({ type: "GO_TO", screen });
   }
 
@@ -341,13 +348,13 @@ export default function DemoApp() {
       case "invite": return <InviteScreen state={state} query={inviteQuery} setQuery={setInviteQuery} invite={() => dispatch({ type: "INVITE_REN" })} isMobile={isMobile} />;
       case "dinner": return <DinnerScreen state={state} toggle={(optionId) => dispatch({ type: "TOGGLE_DINNER", optionId })} continueToVote={() => goTo("vote")} />;
       case "vote": return <VoteScreen state={state} vote={(optionId) => dispatch({ type: "VOTE", optionId })} submit={() => goTo("expense")} />;
-      case "expense": return <ExpenseScreen state={state} setAmount={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} setDescription={(description) => dispatch({ type: "SET_DESCRIPTION", description })} isMobile={isMobile} goToSplit={() => goTo("split")} />;
+      case "expense": return <ExpenseScreen state={state} setAmount={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} setDescription={(description) => dispatch({ type: "SET_DESCRIPTION", description })} isMobile={isMobile} openKeyboard={() => setKeyboardOpen(true)} goToSplit={() => goTo("split")} />;
       case "split": return <SplitScreen state={state} toggle={(memberId) => dispatch({ type: "TOGGLE_PARTICIPANT", memberId })} confirm={() => dispatch({ type: "CONFIRM_EXPENSE" })} />;
       case "settle": return <SettleScreen state={state} settle={() => dispatch({ type: "SETTLE" })} />;
     }
   }
 
-  const keyboardMode = state.screen === "expense" ? "number" : null;
+  const keyboardMode = state.screen === "expense" && keyboardOpen ? "number" : null;
 
   return (
     <main className="demo-shell">
@@ -367,7 +374,7 @@ export default function DemoApp() {
             {effectiveDeviceView === "app" && <>
               <PhoneHeader state={state} goBack={() => goTo(previousScreen(state.screen))} reset={resetDemo} />
               <div className="app-scroll">{renderScreen()}</div>
-              <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} />
+              <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} onDone={() => setKeyboardOpen(false)} />
               <div className="home-indicator" aria-hidden="true" />
             </>}
           </div>
