@@ -28,6 +28,7 @@ export type Expense = {
 
 export type DemoState = {
   screen: ScreenId;
+  activeUserId: string;
   members: Member[];
   debts: Debt[];
   invitedRen: boolean;
@@ -40,11 +41,12 @@ export type DemoState = {
     participantIds: string[];
   };
   expenses: Expense[];
-  settled: boolean;
+  settledUserIds: string[];
 };
 
 export type DemoAction =
   | { type: "GO_TO"; screen: ScreenId }
+  | { type: "SET_PERSONA"; memberId: string }
   | { type: "RESET" }
   | { type: "INVITE_REN" }
   | { type: "TOGGLE_DINNER"; optionId: string }
@@ -80,6 +82,7 @@ export const screenLabels: Record<ScreenId, { title: string; note?: string }> = 
 export function createInitialState(): DemoState {
   return {
     screen: "overview",
+    activeUserId: currentUserId,
     members: initialMembers,
     debts: existingDebts,
     invitedRen: false,
@@ -92,7 +95,7 @@ export function createInitialState(): DemoState {
       participantIds: initialMembers.map((member) => member.id),
     },
     expenses: [],
-    settled: false,
+    settledUserIds: [],
   };
 }
 
@@ -106,6 +109,12 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
     case "GO_TO":
       return { ...state, screen: action.screen };
+    case "SET_PERSONA":
+      return {
+        ...state,
+        activeUserId: action.memberId,
+        expenseDraft: { ...state.expenseDraft, payerId: action.memberId },
+      };
     case "RESET":
       return createInitialState();
     case "INVITE_REN": {
@@ -130,7 +139,7 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     case "VOTE":
       return {
         ...state,
-        votes: { ...state.votes, [currentUserId]: action.optionId },
+        votes: { ...state.votes, [state.activeUserId]: action.optionId },
       };
     case "SET_EXPENSE_AMOUNT":
       return {
@@ -170,7 +179,9 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
       };
     }
     case "SETTLE":
-      return { ...state, settled: true };
+      return state.settledUserIds.includes(state.activeUserId)
+        ? state
+        : { ...state, settledUserIds: [...state.settledUserIds, state.activeUserId] };
     default:
       return state;
   }
@@ -196,17 +207,22 @@ export function calculateBalances(state: DemoState) {
     });
   });
 
-  if (state.settled && (balances[currentUserId] ?? 0) < 0) {
-    const payment = Math.abs(balances[currentUserId]);
-    balances[currentUserId] += payment;
-    balances.maya -= payment;
-  }
+  state.settledUserIds.forEach((memberId) => {
+    if ((balances[memberId] ?? 0) >= 0) return;
+    const payment = Math.abs(balances[memberId]);
+    const creditorId = Object.entries(balances)
+      .filter(([id, balance]) => id !== memberId && balance > 0)
+      .sort(([, a], [, b]) => b - a)[0]?.[0];
+    if (!creditorId) return;
+    balances[memberId] += payment;
+    balances[creditorId] -= payment;
+  });
 
   return balances;
 }
 
 export function getCurrentUserBalance(state: DemoState) {
-  return calculateBalances(state)[currentUserId] ?? 0;
+  return calculateBalances(state)[state.activeUserId] ?? 0;
 }
 
 export function getSplitAmount(state: DemoState) {

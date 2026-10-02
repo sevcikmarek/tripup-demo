@@ -15,12 +15,13 @@ import {
   type ScreenId,
 } from "@/lib/demo-logic";
 import {
-  currentUserId,
   dinnerOptions,
   itinerary,
   ren,
   type Member,
 } from "@/lib/demo-data";
+
+type DeviceView = "lock" | "home" | "app";
 
 const euro = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -54,11 +55,7 @@ function BackIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>;
 }
 
-function MoreIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>;
-}
-
-function PhoneHeader({ state, goBack }: { state: DemoState; goBack: () => void }) {
+function PhoneHeader({ state, goBack, reset }: { state: DemoState; goBack: () => void; reset: () => void }) {
   const isTrips = state.screen === "trips";
   return (
     <>
@@ -69,7 +66,7 @@ function PhoneHeader({ state, goBack }: { state: DemoState; goBack: () => void }
       <header className="app-header">
         {isTrips ? <span className="header-spacer" /> : <button className="icon-button" aria-label="Go back" onClick={goBack}><BackIcon /></button>}
         <span className="header-title">{isTrips ? "" : "Lisbon"}</span>
-        <button className="icon-button" aria-label="More options"><MoreIcon /></button>
+        <button className="icon-button reset-icon" aria-label="Reset demo" onClick={reset}>↻</button>
       </header>
     </>
   );
@@ -81,7 +78,7 @@ function MemberStrip({ state, onAdd }: { state: DemoState; onAdd: () => void }) 
       {state.members.map((member) => (
         <div className="person" key={member.id}>
           <Avatar member={member} />
-          <span>{member.isYou ? "You" : member.name.split(" ")[0]}</span>
+          <span>{member.id === state.activeUserId ? "You" : member.name.split(" ")[0]}</span>
         </div>
       ))}
       {!state.invitedRen && <button className="add-person" aria-label="Add Ren" onClick={onAdd}>+</button>}
@@ -93,20 +90,21 @@ function BalanceCard({ state, onExpense }: { state: DemoState; onExpense: () => 
   const balance = getCurrentUserBalance(state);
   return (
     <section className="balance-card">
-      <div><span>BALANCE</span><strong>{state.settled ? "You’re settled" : balance < 0 ? `You owe ${euro.format(Math.abs(balance))}` : `You are owed ${euro.format(balance)}`}</strong></div>
+      <div><span>BALANCE</span><strong>{state.settledUserIds.includes(state.activeUserId) ? "You’re settled" : balance < 0 ? `You owe ${euro.format(Math.abs(balance))}` : `You are owed ${euro.format(balance)}`}</strong></div>
       <button onClick={onExpense}>＋ <span>add expense</span></button>
     </section>
   );
 }
 
-function TripsScreen({ goToOverview }: { goToOverview: () => void }) {
+function TripsScreen({ state, goToOverview }: { state: DemoState; goToOverview: () => void }) {
+  const balance = getCurrentUserBalance(state);
   return (
     <div className="screen trips-screen">
       <div className="screen-title-row"><h1>Trips</h1><button className="pill-button">＋ add trip</button></div>
       <p className="section-label">NOW</p>
       <button className="trip-card active-trip" onClick={goToOverview}>
         <span><strong>Lisbon</strong><small>20–27 September</small></span>
-        <span className="trip-card-meta"><span className="stacked-avatars">AR · MY · BO · EM</span><b>You owe €260</b></span>
+        <span className="trip-card-meta"><span className="stacked-avatars">AR · MY · BO · EM</span><b>{balance < 0 ? `You owe ${euro.format(Math.abs(balance))}` : `You’re owed ${euro.format(balance)}`}</b></span>
       </button>
       <p className="section-label">UPCOMING</p>
       <div className="trip-card"><span><strong>Porto Conference</strong><small>20–22 October</small></span><em>Organising</em></div>
@@ -178,10 +176,10 @@ function VoteScreen({ state, vote, submit }: { state: DemoState; vote: (id: stri
       <div className="vote-hero"><h1>Voting on dinner</h1><div className="vote-people">{state.members.map((member) => <div key={member.id}><Avatar member={member} /><small>{state.votes[member.id] ? "Voted" : member.name.split(" ")[0]}</small></div>)}</div></div>
       <div className="vote-options">
         {dinnerOptions.filter((option) => state.selectedDinnerIds.includes(option.id)).map((option) => {
-          const selected = state.votes[currentUserId] === option.id;
+          const selected = state.votes[state.activeUserId] === option.id;
           return <button className={selected ? "selected" : ""} key={option.id} onClick={() => vote(option.id)}><i>{selected ? "✓" : ""}</i><span>{option.name}</span><b>{voteCounts[option.id] ?? 0} vote{voteCounts[option.id] === 1 ? "" : "s"}</b></button>;
         })}
-        <button className="primary-action" disabled={!state.votes[currentUserId]} onClick={submit}>Submit vote</button>
+        <button className="primary-action" disabled={!state.votes[state.activeUserId]} onClick={submit}>Submit vote</button>
       </div>
       <BalanceCard state={state} onExpense={submit} />
     </div>
@@ -210,7 +208,7 @@ function SplitScreen({ state, toggle, confirm }: { state: DemoState; toggle: (id
       <section className="split-list">
         {state.members.map((member) => {
           const checked = state.expenseDraft.participantIds.includes(member.id);
-          return <button key={member.id} onClick={() => toggle(member.id)}><i className={checked ? "checked" : ""}>{checked ? "✓" : ""}</i><Avatar member={member} small /><span>{member.name}{member.isYou ? " (you)" : ""}</span><b>{checked ? euro.format(share) : "—"}</b></button>;
+          return <button key={member.id} onClick={() => toggle(member.id)}><i className={checked ? "checked" : ""}>{checked ? "✓" : ""}</i><Avatar member={member} small /><span>{member.name}{member.id === state.activeUserId ? " (you)" : ""}</span><b>{checked ? euro.format(share) : "—"}</b></button>;
         })}
       </section>
       <div className="split-summary"><strong>{state.expenseDraft.participantIds.length} people included</strong><small>Ren only joins costs added after their invite.</small></div>
@@ -221,18 +219,79 @@ function SplitScreen({ state, toggle, confirm }: { state: DemoState; toggle: (id
 
 function SettleScreen({ state, settle }: { state: DemoState; settle: () => void }) {
   const balances = calculateBalances(state);
-  const youOwe = Math.max(0, -(balances[currentUserId] ?? 0));
-  const recipient = state.members.find((member) => member.id === "maya")!;
+  const currentBalance = balances[state.activeUserId] ?? 0;
+  const youOwe = Math.max(0, -currentBalance);
+  const isSettled = state.settledUserIds.includes(state.activeUserId);
+  const recipient = state.members
+    .filter((member) => member.id !== state.activeUserId)
+    .sort((a, b) => (balances[b.id] ?? 0) - (balances[a.id] ?? 0))[0];
+  const currentMember = state.members.find((member) => member.id === state.activeUserId)!;
+  const isCreditor = currentBalance > 0;
   return (
     <div className="screen settle-screen">
-      <div className="settle-hero"><h1>{state.settled ? "You’re settled up" : "Settling up"}</h1><p>{state.settled ? "Your Lisbon balance is clear." : "One payment closes your part of the trip."}</p></div>
+      <div className="settle-hero"><h1>{isSettled ? "You’re settled up" : isCreditor ? "You’re owed" : "Settling up"}</h1><p>{isSettled ? "Your Lisbon balance is clear." : isCreditor ? "Your friends can settle with one tap." : "One payment closes your part of the trip."}</p></div>
       <section className="payment-card">
-        <Avatar member={recipient} /><span><small>You pay</small><strong>{recipient.name}</strong></span><b>{state.settled ? "Paid" : euro.format(youOwe)}</b>
+        <Avatar member={isCreditor ? currentMember : recipient} /><span><small>{isCreditor ? "Group owes you" : "You pay"}</small><strong>{isCreditor ? currentMember.name : recipient.name}</strong></span><b>{isSettled ? "Paid" : euro.format(isCreditor ? currentBalance : youOwe)}</b>
       </section>
-      <button className="wallet-button" disabled={state.settled} onClick={settle}><span>G Pay</span><b>VISA •••• 1234</b></button>
-      <p className="settle-note">Maya pays Bob separately · Ren has no earlier balance</p>
+      <button className="wallet-button" disabled={isSettled || isCreditor} onClick={settle}><span>{isCreditor ? "Payment requests sent" : "G Pay"}</span><b>{isCreditor ? "Waiting" : "VISA •••• 1234"}</b></button>
+      <p className="settle-note">Suggested payments minimize transfers · Ren has no earlier balance</p>
       <BalanceCard state={state} onExpense={() => undefined} />
-      <section className="balance-breakdown"><h3>Group balances</h3>{state.members.map((member) => <div key={member.id}><span><Avatar member={member} small /> {member.name}</span><b className={(balances[member.id] ?? 0) >= 0 ? "positive" : "negative"}>{state.settled && member.isYou ? "Settled" : euro.format(balances[member.id] ?? 0)}</b></div>)}</section>
+      <section className="balance-breakdown"><h3>Group balances</h3>{state.members.map((member) => <div key={member.id}><span><Avatar member={member} small /> {member.name}{member.id === state.activeUserId ? " (you)" : ""}</span><b className={(balances[member.id] ?? 0) >= 0 ? "positive" : "negative"}>{isSettled && member.id === state.activeUserId ? "Settled" : euro.format(balances[member.id] ?? 0)}</b></div>)}</section>
+    </div>
+  );
+}
+
+function SystemStatusBar({ dark = false }: { dark?: boolean }) {
+  return (
+    <div className={`system-status ${dark ? "system-status-dark" : ""}`} aria-hidden="true">
+      <strong>9:30</strong><span className="dynamic-island" />
+      <div><span>▮▮▮</span><span>⌁</span><span className="system-battery" /></div>
+    </div>
+  );
+}
+
+function LockScreen({ state, openApp, openHome }: { state: DemoState; openApp: () => void; openHome: () => void }) {
+  const person = state.members.find((member) => member.id === state.activeUserId)!;
+  const isAri = state.activeUserId === "ari";
+  return (
+    <div className="ios-system lock-screen">
+      <SystemStatusBar dark />
+      <div className="wallpaper-orb orb-one" /><div className="wallpaper-orb orb-two" />
+      <div className="lock-date">Friday, October 2</div><div className="lock-time">9:30</div>
+      <section className="glass-notifications" aria-label="Notifications">
+        <button className="glass-notification" onClick={openApp}>
+          <span className="tripup-app-icon">T</span>
+          <span><b>TRIPUP</b><small>now</small><strong>{isAri ? "Maya voted for Taberna da Rua das Flores" : "Ari added the €250 dinner expense"}</strong><p>{isAri ? "Lisbon · The dinner poll is ready for your vote." : "Lisbon · Review how the group bill was split."}</p></span>
+        </button>
+        <div className="glass-notification compact-notification"><span className="calendar-app-icon">2</span><span><b>CALENDAR</b><small>in 1h</small><strong>Lisbon planning check-in</strong><p>Call with {person.name} and the group</p></span></div>
+      </section>
+      <div className="lock-actions"><button aria-label="Flashlight">⌁</button><span>Swipe up to open</span><button aria-label="Camera">◎</button></div>
+      <button className="system-home-bar" aria-label="Open Home Screen" onClick={openHome} />
+    </div>
+  );
+}
+
+function HomeScreen({ state, openApp, lock }: { state: DemoState; openApp: () => void; lock: () => void }) {
+  const balance = getCurrentUserBalance(state);
+  const apps = [
+    ["◉", "Camera", "charcoal"], ["▣", "Photos", "spectrum"], ["▤", "Calendar", "red"], ["☀", "Weather", "blue"],
+    ["♫", "Music", "pink"], ["✦", "Maps", "green"], ["✉", "Mail", "cyan"], ["⚙", "Settings", "silver"],
+  ];
+  return (
+    <div className="ios-system home-screen">
+      <SystemStatusBar dark />
+      <div className="wallpaper-orb orb-one" /><div className="wallpaper-orb orb-two" />
+      <section className="glass-widget">
+        <div><small>UPCOMING TRIP</small><strong>Lisbon</strong><span>20–27 September · 5 friends</span></div>
+        <b>{balance < 0 ? `You owe ${euro.format(Math.abs(balance))}` : `${euro.format(balance)} owed to you`}</b>
+      </section>
+      <div className="app-grid">
+        <button className="app-tile" onClick={openApp}><span className="tripup-app-icon large-icon">T</span><small>TripUp</small></button>
+        {apps.map(([symbol, label, color]) => <button className="app-tile" key={label}><span className={`generic-app-icon icon-${color}`}>{symbol}</span><small>{label}</small></button>)}
+      </div>
+      <button className="glass-search" aria-label="Search"><span>⌕</span> Search</button>
+      <div className="glass-dock"><button><span className="generic-app-icon icon-green">☎</span></button><button><span className="generic-app-icon icon-blue">◉</span></button><button><span className="generic-app-icon icon-cyan">✉</span></button><button><span className="generic-app-icon icon-pink">♫</span></button></div>
+      <button className="system-home-bar" aria-label="Lock iPhone" onClick={lock} />
     </div>
   );
 }
@@ -249,8 +308,16 @@ function MockKeyboard({ mode, value, onChange, textValue, onTextChange }: { mode
 export default function DemoApp() {
   const [state, dispatch] = useReducer(demoReducer, undefined, createInitialState);
   const [inviteQuery, setInviteQuery] = useState("Ren");
+  const [deviceView, setDeviceView] = useState<DeviceView>("app");
   const isMobile = useIsMobile();
   const activeIndex = screenOrder.indexOf(state.screen);
+  const effectiveDeviceView: DeviceView = isMobile ? "app" : deviceView;
+
+  function resetDemo() {
+    dispatch({ type: "RESET" });
+    setInviteQuery("Ren");
+    setDeviceView("app");
+  }
 
   function goTo(screen: ScreenId) {
     if (screenOrder.indexOf(screen) >= screenOrder.indexOf("dinner") && !state.invitedRen) dispatch({ type: "INVITE_REN" });
@@ -259,7 +326,7 @@ export default function DemoApp() {
 
   function renderScreen() {
     switch (state.screen) {
-      case "trips": return <TripsScreen goToOverview={() => goTo("overview")} />;
+      case "trips": return <TripsScreen state={state} goToOverview={() => goTo("overview")} />;
       case "overview": return <OverviewScreen state={state} goTo={goTo} />;
       case "invite": return <InviteScreen state={state} query={inviteQuery} setQuery={setInviteQuery} invite={() => dispatch({ type: "INVITE_REN" })} isMobile={isMobile} />;
       case "dinner": return <DinnerScreen state={state} toggle={(optionId) => dispatch({ type: "TOGGLE_DINNER", optionId })} continueToVote={() => goTo("vote")} />;
@@ -276,18 +343,24 @@ export default function DemoApp() {
     <main className="demo-shell">
       <aside className="demo-controls">
         <div><p className="eyebrow">Interactive prototype</p><h2>TripUp click-through</h2><p className="demo-intro">A Lisbon trip with shared plans, live voting, expenses, and settlement.</p></div>
+        <div className="control-group"><span>VIEW AS</span><div className="segmented-control">{state.members.slice(0, 2).map((member) => <button className={state.activeUserId === member.id ? "active" : ""} key={member.id} onClick={() => dispatch({ type: "SET_PERSONA", memberId: member.id })}><Avatar member={member} small />{member.name}</button>)}</div></div>
+        <div className="control-group"><span>IPHONE 18 PRO</span><div className="segmented-control device-control">{(["lock", "home", "app"] as DeviceView[]).map((view) => <button className={deviceView === view ? "active" : ""} key={view} onClick={() => setDeviceView(view)}>{view === "lock" ? "Lock" : view === "home" ? "Home" : "TripUp"}</button>)}</div></div>
         <nav aria-label="Demo steps">{screenOrder.map((screen, index) => <button className={state.screen === screen ? "active" : ""} key={screen} onClick={() => goTo(screen)} aria-current={state.screen === screen ? "step" : undefined}><span className="step-number">{index + 1}</span><span><strong>{screenLabels[screen].title}</strong>{screenLabels[screen].note && <small>{screenLabels[screen].note}</small>}</span></button>)}</nav>
-        <div className="desktop-actions"><button className="restart" onClick={() => dispatch({ type: "RESET" })}>↻ Restart demo</button><span>Step {activeIndex + 1} of {screenOrder.length}</span></div>
+        <div className="desktop-actions"><button className="restart" onClick={resetDemo}>↻ Reset prototype</button><span>Step {activeIndex + 1} of {screenOrder.length}</span></div>
       </aside>
 
       <section className="preview-stage">
-        <div className="preview-label"><span className="live-dot" /> State-aware prototype</div>
+        <div className="preview-label"><span className="live-dot" /> iPhone 18 Pro · Liquid Glass</div>
         <div className="phone" aria-label="TripUp mobile preview">
           <div className="phone-screen">
-            <PhoneHeader state={state} goBack={() => goTo(previousScreen(state.screen))} />
-            <div className="app-scroll">{renderScreen()}</div>
-            <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} textValue={inviteQuery} onTextChange={setInviteQuery} />
-            <div className="home-indicator" aria-hidden="true" />
+            {effectiveDeviceView === "lock" && <LockScreen state={state} openApp={() => setDeviceView("app")} openHome={() => setDeviceView("home")} />}
+            {effectiveDeviceView === "home" && <HomeScreen state={state} openApp={() => setDeviceView("app")} lock={() => setDeviceView("lock")} />}
+            {effectiveDeviceView === "app" && <>
+              <PhoneHeader state={state} goBack={() => goTo(previousScreen(state.screen))} reset={resetDemo} />
+              <div className="app-scroll">{renderScreen()}</div>
+              <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} textValue={inviteQuery} onTextChange={setInviteQuery} />
+              <div className="home-indicator" aria-hidden="true" />
+            </>}
           </div>
         </div>
       </section>
