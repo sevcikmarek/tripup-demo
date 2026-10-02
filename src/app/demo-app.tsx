@@ -61,7 +61,7 @@ function PhoneHeader({ state, goBack, reset }: { state: DemoState; goBack: () =>
     <>
       <div className="status-bar" aria-hidden="true">
         <strong>9:30</strong><span className="dynamic-island" />
-        <div className="status-icons"><span>▮▮▮</span><span>⌁</span><span className="battery" /></div>
+        <StatusGraphics />
       </div>
       <header className="app-header">
         {isTrips ? <span className="header-spacer" /> : <button className="icon-button" aria-label="Go back" onClick={goBack}><BackIcon /></button>}
@@ -245,7 +245,17 @@ function SystemStatusBar({ dark = false }: { dark?: boolean }) {
   return (
     <div className={`system-status ${dark ? "system-status-dark" : ""}`} aria-hidden="true">
       <strong>9:30</strong><span className="dynamic-island" />
-      <div><span>▮▮▮</span><span>⌁</span><span className="system-battery" /></div>
+      <StatusGraphics />
+    </div>
+  );
+}
+
+function StatusGraphics() {
+  return (
+    <div className="status-graphics" aria-hidden="true">
+      <span className="cellular-signal"><i /><i /><i /><i /></span>
+      <svg className="wifi-symbol" viewBox="0 0 20 15"><path d="M1.5 4.8a13 13 0 0 1 17 0M4.4 8a8.6 8.6 0 0 1 11.2 0M7.5 11.1a3.8 3.8 0 0 1 5 0" /><circle cx="10" cy="13.2" r="1" /></svg>
+      <span className="battery-symbol"><i /></span>
     </div>
   );
 }
@@ -296,13 +306,13 @@ function HomeScreen({ state, openApp, lock }: { state: DemoState; openApp: () =>
   );
 }
 
-function MockKeyboard({ mode, value, onChange, textValue, onTextChange }: { mode: "text" | "number" | null; value: string; onChange: (value: string) => void; textValue: string; onTextChange: (value: string) => void }) {
+function MockKeyboard({ mode, value, onChange }: { mode: "number" | null; value: string; onChange: (value: string) => void }) {
   if (!mode) return null;
-  if (mode === "number") {
-    return <div className="mock-keyboard numeric-keyboard" aria-hidden="true">{["1","2","3","4","5","6","7","8","9",".","0","⌫"].map((key) => <button key={key} tabIndex={-1} onClick={() => onChange(key === "⌫" ? value.slice(0,-1) : `${value}${key}`)}>{key}</button>)}</div>;
-  }
-  const keys = ["Q","W","E","R","T","Y","U","I","O","P","A","S","D","F","G","H","J","K","L","Z","X","C","V","B","N","M","space","⌫"];
-  return <div className="mock-keyboard text-keyboard" aria-hidden="true">{keys.map((key) => <button key={key} className={key === "space" ? "wide" : ""} tabIndex={-1} onClick={() => onTextChange(key === "⌫" ? textValue.slice(0,-1) : key === "space" ? `${textValue} ` : `${textValue}${key.toLowerCase()}`)}>{key}</button>)}</div>;
+  const keys = [
+    ["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"],
+    ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], [".", ""], ["0", ""], ["⌫", ""],
+  ];
+  return <div className="mock-keyboard numeric-keyboard" aria-hidden="true"><div className="keyboard-glass-bar"><span>TripUp</span><button tabIndex={-1}>Done</button></div>{keys.map(([key, letters]) => <button key={key} tabIndex={-1} className={key === "⌫" ? "delete-key" : ""} onClick={() => onChange(key === "⌫" ? value.slice(0,-1) : `${value}${key}`)}><strong>{key}</strong>{letters && <small>{letters}</small>}</button>)}</div>;
 }
 
 export default function DemoApp() {
@@ -337,20 +347,19 @@ export default function DemoApp() {
     }
   }
 
-  const keyboardMode = state.screen === "invite" ? "text" : state.screen === "expense" ? "number" : null;
+  const keyboardMode = state.screen === "expense" ? "number" : null;
 
   return (
     <main className="demo-shell">
       <aside className="demo-controls">
-        <div><p className="eyebrow">Interactive prototype</p><h2>TripUp click-through</h2><p className="demo-intro">A Lisbon trip with shared plans, live voting, expenses, and settlement.</p></div>
+        <h2>TripUp</h2>
         <div className="control-group"><span>VIEW AS</span><div className="segmented-control">{state.members.slice(0, 2).map((member) => <button className={state.activeUserId === member.id ? "active" : ""} key={member.id} onClick={() => dispatch({ type: "SET_PERSONA", memberId: member.id })}><Avatar member={member} small />{member.name}</button>)}</div></div>
-        <div className="control-group"><span>IPHONE 18 PRO</span><div className="segmented-control device-control">{(["lock", "home", "app"] as DeviceView[]).map((view) => <button className={deviceView === view ? "active" : ""} key={view} onClick={() => setDeviceView(view)}>{view === "lock" ? "Lock" : view === "home" ? "Home" : "TripUp"}</button>)}</div></div>
-        <nav aria-label="Demo steps">{screenOrder.map((screen, index) => <button className={state.screen === screen ? "active" : ""} key={screen} onClick={() => goTo(screen)} aria-current={state.screen === screen ? "step" : undefined}><span className="step-number">{index + 1}</span><span><strong>{screenLabels[screen].title}</strong>{screenLabels[screen].note && <small>{screenLabels[screen].note}</small>}</span></button>)}</nav>
+        <div className="control-group no-label"><div className="segmented-control device-control">{(["lock", "home", "app"] as DeviceView[]).map((view) => <button className={deviceView === view ? "active" : ""} key={view} onClick={() => setDeviceView(view)}>{view === "lock" ? "Lock" : view === "home" ? "Home" : "TripUp"}</button>)}</div></div>
+        <nav aria-label="Demo steps">{screenOrder.map((screen, index) => <button className={state.screen === screen ? "active" : ""} key={screen} onClick={() => goTo(screen)} aria-current={state.screen === screen ? "step" : undefined}><span className="step-number">{index + 1}</span><span><strong>{screenLabels[screen].title}</strong></span></button>)}</nav>
         <div className="desktop-actions"><button className="restart" onClick={resetDemo}>↻ Reset prototype</button><span>Step {activeIndex + 1} of {screenOrder.length}</span></div>
       </aside>
 
       <section className="preview-stage">
-        <div className="preview-label"><span className="live-dot" /> iPhone 18 Pro · Liquid Glass</div>
         <div className="phone" aria-label="TripUp mobile preview">
           <div className="phone-screen">
             {effectiveDeviceView === "lock" && <LockScreen state={state} openApp={() => setDeviceView("app")} openHome={() => setDeviceView("home")} />}
@@ -358,7 +367,7 @@ export default function DemoApp() {
             {effectiveDeviceView === "app" && <>
               <PhoneHeader state={state} goBack={() => goTo(previousScreen(state.screen))} reset={resetDemo} />
               <div className="app-scroll">{renderScreen()}</div>
-              <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} textValue={inviteQuery} onTextChange={setInviteQuery} />
+              <MockKeyboard mode={keyboardMode} value={state.expenseDraft.amount} onChange={(amount) => dispatch({ type: "SET_EXPENSE_AMOUNT", amount })} />
               <div className="home-indicator" aria-hidden="true" />
             </>}
           </div>

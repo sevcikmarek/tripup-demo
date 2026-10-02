@@ -18,7 +18,9 @@ Ren joins as the fifth traveler during the invite step. Earlier balances remain 
 
 Text and decimal fields use native inputs on screens up to 760px wide, so phones open the real device keyboard. The desktop phone preview makes the same inputs read-only and supplies an on-screen mock keyboard. The app content scrolls inside the phone frame at both breakpoints.
 
-Desktop controls can switch between Ari and Maya so balances, “you” labels, votes, payments, and expense ownership are rendered from different perspectives. The iPhone 18 Pro preview can also switch between a generic Liquid Glass-inspired Lock Screen, Home Screen, and TripUp. On actual mobile widths these presentation controls are removed and the prototype always starts in Ari’s primary app flow. Reset is available from both the desktop rail and the mobile app header.
+Desktop controls can switch between Ari and Maya so balances, “you” labels, votes, payments, and expense ownership are rendered from different perspectives. The preview can also switch between static screenshot-style Lock and Home Screens and TripUp; only useful demo hotspots such as the TripUp notification remain interactive. The frame follows the iPhone 18 Pro’s official physical and display proportions, with a compact Dynamic Island and rendered cellular, Wi-Fi, and battery status graphics. On actual mobile widths these presentation controls are removed and the prototype always starts in Ari’s primary app flow. Reset is available from both the desktop rail and the mobile app header.
+
+The desktop expense field uses a dedicated translucent numeric keypad with iOS-style number and letter groupings. Mobile continues to use the device’s native decimal keyboard.
 
 ## Local development
 
