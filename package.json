@@ -1,0 +1,15 @@
+{
+  "name": "tripup-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TripUp: an interactive Lisbon group travel prototype by Marek Ševčík",
+  "author": "Marek Ševčík",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "dev": "npm run build && npm start",
+    "check": "node scripts/check.mjs",
+    "test": "node tests/expenses.test.mjs"
+  }
+}
