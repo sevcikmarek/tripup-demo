@@ -8,7 +8,7 @@ An interactive group travel prototype by **Marek Ševčík**. Follow a group in 
 
 ## Explore the demo
 
-The prototype opens directly on the Lisbon trip. Try the dinner vote, add an expense with a custom split, review the group balance, and explore the simulated payment flow. Trip members, schedules, expenses, and payment details are demonstration data.
+Every page load opens directly on the Lisbon trip with the flow reset. Refreshing or opening the link in another window starts a fresh demo. Try the dinner vote, add an expense with a custom split, review the group balance, and explore the simulated payment flow. Trip members, schedules, expenses, and payment details are demonstration data.
 
 The presentation controls let you adjust the pace and restart the scenario. **Esc** resets the demo. On a phone, normal scrolling and pinch zoom remain available; double tapping no longer zooms the interface.
 
@@ -45,6 +45,6 @@ npm test
 
 This repository preserves the supplied design export and its interactions. The application source, styles, and assets have been separated from the original single-file bundle so they can be inspected and edited. The exported DC template runtime renders the interface with bundled React 18.3.1. See [the architecture notes](docs/ARCHITECTURE.md) for the rendering and state model.
 
-This is a browser prototype: payments, invitations, group updates, and connected services are simulated. There is no server, authentication, shared database, or real payment processing. Progress is saved in browser local storage; it does not sync across devices. Discovery pictures use Wikimedia Commons and LoremFlickr and may depend on network availability.
+This is a browser prototype: payments, invitations, group updates, and connected services are simulated. There is no server, authentication, shared database, or real payment processing. Progress stays in memory for the current page and resets on reload. Discovery pictures use Wikimedia Commons and LoremFlickr and may depend on network availability.
 
 The original assets and vendor code retain their existing rights and notices. See [third-party notices](THIRD_PARTY_NOTICES.md).

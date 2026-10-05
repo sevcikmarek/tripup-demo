@@ -10,9 +10,9 @@ The runtime under `static/assets/vendor/` is generated export code. Make applica
 
 ## State and interactions
 
-`src/prototype.js` defines the mock itinerary, people, venue suggestions, expense helpers, and component interactions. A navigation stack starts with `trips` and `trip`, placing Lisbon on screen while retaining back navigation. Older stored sessions that only contain `trips` are migrated on load.
+`src/prototype.js` defines the mock itinerary, people, venue suggestions, expense helpers, and component interactions. A navigation stack starts with `trips` and `trip`, placing Lisbon on screen while retaining back navigation. Every page load uses the initial state; saved navigation and flow progress are never restored.
 
-Demo progress uses local storage key `tripup-proto-ds-v6`. The reset control or Esc restarts the scenario. The separate image cache (`tripup-imgs-v2`) can persist across resets. No user account or backend is involved.
+Demo progress stays in component memory and resets on refresh or when the link opens in another window. On startup, the obsolete local storage key `tripup-proto-ds-v6` is removed so older saved sessions cannot resume. The reset control or Esc also restarts the scenario within the current page. The separate image cache (`tripup-imgs-v2`) can persist across resets. No user account or backend is involved.
 
 Expense allocation supports equal splits, weighted shares, fixed amounts, percentages, and a separate portion for selected participants. Tests exercise those calculations and invalid allocations. The ledger deliberately keeps a small amount owed in some scenarios to demonstrate settlement; it is not a financial accounting system.
 

@@ -89,7 +89,7 @@ const CONTACTS = [
 ];
 const KEYS = [['1', ''], ['2', 'ABC'], ['3', 'DEF'], ['4', 'GHI'], ['5', 'JKL'], ['6', 'MNO'], ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ'], ['.', ''], ['0', ''], ['del', '']];
 const ORDER = ['trips', 'trip', 'choose', 'expense', 'split', 'balance'];
-const STORE = 'tripup-proto-ds-v6';
+const LEGACY_STORE = 'tripup-proto-ds-v6';
 const DASH = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='64'%3E%3Crect x='0.75' y='0.75' width='50.5' height='62.5' rx='11.25' fill='none' stroke='black' stroke-width='1.5' stroke-dasharray='6 8'/%3E%3C/svg%3E\") center/100% 100% no-repeat";
 const BASE = ['sofia', 'maya', 'nic', 'eleanor'];
 const keyset = keys => Object.fromEntries(keys.map(k => [k, true]));
@@ -291,17 +291,8 @@ class Component extends DCLogic {
     };
     window.addEventListener('pointerdown', this.onPanDown);
     window.addEventListener('pointermove', this.onMove); window.addEventListener('pointerdown', this.onDown); this.onWake = () => this.wakeHome(); window.addEventListener('pointerdown', this.onWake); window.addEventListener('pointerup', this.onUp);
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-      const okPoll = p => !p || (Array.isArray(p.opts) && (p.submitted == null || typeof p.submitted === 'number') && Object.values(p.votes || {}).every(x => typeof x === 'number'));
-      if (saved && saved.v === 4 && Array.isArray(saved.stack) && saved.exp && saved.paid && okPoll(saved.poll)) {
-        saved.paid = { ...initial().paid, ...saved.paid };
-        delete saved.v; if (saved.sheet === 'gpay') saved.sheet = null;
-        saved.gpay = saved.paid.sofia ? 'done' : 'idle';
-        if (saved.stack.length === 1 && saved.stack[0] === 'trips') saved.stack = ['trips', 'trip'];
-        this.setState(saved, () => this.resume());
-      }
-    } catch (e) {}
+    // Each page load starts at initial(); remove progress saved by older versions.
+    try { localStorage.removeItem(LEGACY_STORE); } catch (e) {}
   }
   componentWillUnmount() { this.dead = true; if (this.onTake) { document.removeEventListener('wheel', this.onTake, true); document.removeEventListener('touchstart', this.onTake, true); } if (this._pwWheel) { document.removeEventListener('wheel', this._pwWheel); document.removeEventListener('pointerdown', this._pwDown); }
     clearInterval(this.subIv); this.clearTimers(); if (this.heroRO) this.heroRO.disconnect(); if (this.dragOff) this.dragOff(); document.removeEventListener('scroll', this.onAnyScroll, true); if (window.visualViewport) { window.visualViewport.removeEventListener('resize', this.onVV); window.visualViewport.removeEventListener('scroll', this.onVV); } window.removeEventListener('resize', this.onResize); window.removeEventListener('keydown', this.onKey); window.removeEventListener('pointermove', this.onMove); window.removeEventListener('pointerdown', this.onDown); window.removeEventListener('pointerdown', this.onPanDown); cancelAnimationFrame(this.panRaf); window.removeEventListener('pointerup', this.onUp); }
@@ -315,21 +306,10 @@ class Component extends DCLogic {
   componentDidUpdate(pp, ps) { if (this.state.phase === 'settle' && !this.state.paid.sofia) { clearTimeout(this._fcA); this._fcA = setTimeout(() => this.fitCutA(), 60); } if (!this._pwDrag) requestAnimationFrame(() => this.pwSync(false)); { const open = (this.state.sel || []).length >= 1 && (this.state.stack || []).includes('choose'); if (open && !this._pwOpen) this.pwKick(); this._pwOpen = open; } if (this.state.paid.sofia && !(ps && ps.paid && ps.paid.sofia)) [60, 500, 1300].forEach(ms => setTimeout(() => this.fitCut(), ms)); { const c = this.state.clock; if (this._clk != null && this._clk !== c) this.rollClock(this._clk, c); this._clk = c; } const pp0 = ps && ps.poll || {}, pn = this.state.poll || {}; if (ps && (pp0.mine !== pn.mine || pp0.submitted !== pn.submitted || pp0.editing !== pn.editing || ps.poll !== this.state.poll || ps.phase !== this.state.phase || ps.stack !== this.state.stack || ps.sheet !== this.state.sheet)) setTimeout(() => this.subCheck(), 60); this.cdu0 && this.cdu0(pp, ps); }
   cdu0() {
     const s = this.state;
-    const keep = { v: 4, customs: s.customs, chooseMode: s.chooseMode, extra: s.extra, xq: s.xq, xl: s.xl, renInvited: s.renInvited, renJoined: s.renJoined, settle: s.settle, gotIn: s.gotIn, stack: s.stack, sheet: null, phase: s.phase, suggHidden: s.suggHidden, dinner: s.dinner, dinnerFresh: false, afterDinner: s.afterDinner, expAdded: s.expAdded, poll: s.poll, sel: s.sel, clock: s.clock, owe: s.owe, exp: { ...s.exp, kp: false, txt: false }, paid: s.paid, invited: s.invited, heroLabel: s.heroLabel, itin: s.itin, nudged: s.nudged, lastExp: s.lastExp };
     this.chrome(); this.navCheck();
     if (!this.heroRO && window.ResizeObserver) { const hero = document.querySelector('[data-tu="hero"]'); if (hero) { this.heroRO = new ResizeObserver(() => this.fabCheck()); this.heroRO.observe(hero); } }
     if (this._ph !== s.phase) { this._ph = s.phase; this.fabCheck(); }
     if (s.stack[s.stack.length - 1] === 'choose' || s.phase === 'vote') this.loadImgs(s.chooseMode === 'plan' ? [...PLANS, ...QUICK, ...LATE] : VENUES);
-    clearTimeout(this._saveT); this._saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(keep)); } catch (e) {} }, 600);
-  }
-  resume() {
-    const s = this.state;
-    if (s.renInvited && !s.renJoined) this.after(1000, () => this.renJoin());
-    if (s.phase === 'vote' && s.poll) { if (s.poll.submitted != null) this.after(900, () => this.closePoll()); else this.simVotes(); }
-    if (s.phase === 'planned' && !s.afterDinner && !s.expAdded) this.schedAD(1500);
-    if (s.expAdded && s.phase === 'planned') this.after(900, () => this.toSettle());
-    if (s.phase === 'settled' && !s.bfReady) this.setState({ bfReady: true });
-    if (s.phase === 'settle' && s.paid.sofia) { this.ariT = this.after(1000, () => this.ariPay()); }
   }
   snack(title, sub, tone = 'accent', action = null, ms = 2800) {
     const id = this.state.snack.id + 1;
@@ -863,7 +843,7 @@ class Component extends DCLogic {
     if (step === 'split') { this.setState({ ...base, phase: 'planned', dinner, afterDinner: true, clock: '21:20' }); go('g-expense', () => { this.setState({ exp: freshExp(this.keys()) }); this.push('expense'); }); }
     if (step === 'settle') { this.setState({ ...base, phase: 'planned', dinner, expAdded: true, ...(() => { const keys = [...BASE, 'ren'], ex = { ...freshExp(keys), amt: '250', partOn: true, partAmt: '60', partName: 'Wine', incPart: { ...keyset(keys), nic: false, ren: false } }, c = calc(ex); const shares = Object.fromEntries(keys.map(k => [k, r2((c.A.out[k] || 0) + (c.B.out[k] || 0))])); const le = { title: 'Dinner at ' + VENUES[0].name, amt: c.amt, my: r2(c.my), shares }; return { lastExp: le, owe: -ledger(le).sofia }; })(), renJoined: true, renInvited: true, invited: { ren: true }, clock: '21:40' }); this.after(500, () => this.toSettle()); }
   }
-  reset = () => { if (this._morphFin) this._morphFin(); if (this.dragOff) this.dragOff(); this.blurActive(); this.undoFn = null; this.dstep = 0; this.busy = false; this.clearTimers(); try { localStorage.removeItem(STORE); } catch (e) {} this.guiding = false; this.setState({ ...initial(), stack: ['trips', 'trip'], snack: { ...this.state.snack, show: false }, pill: false }); };
+  reset = () => { if (this._morphFin) this._morphFin(); if (this.dragOff) this.dragOff(); this.blurActive(); this.undoFn = null; this.dstep = 0; this.busy = false; this.clearTimers(); this.guiding = false; this.setState({ ...initial(), stack: ['trips', 'trip'], snack: { ...this.state.snack, show: false }, pill: false }); };
 
   renderVals() {
     const s0 = this.state, h = React.createElement;
