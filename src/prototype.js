@@ -886,11 +886,21 @@ class Component extends DCLogic {
       const pending = m.k === 'ren' && s.renInvited && !s.renJoined;
       let on = false, text = s.heroLabel === 'Settle up' ? 'Paid' : 'Voted';
       if ((s.phase === 'vote' || s.pollLinger) && poll) { on = m.k === 'sofia' ? poll.submitted != null : poll.votes[m.k] != null; text = 'Voted'; }
-      else if (s.phase === 'settle') { const debt = this.debtors(); const bl = ledger(s.lastExp)[m.k] || 0; if (m.k === 'sofia') { on = !s.morph && !!s.paid.sofia; text = 'Paid'; } else if (debt.includes(m.k)) { on = !s.morph && this.paidAt(m.k); text = 'Paid'; } else { on = !s.morph; text = bl > 0.005 ? 'Owed' : 'Even'; } }
+      else if (s.phase === 'settle') {
+        const debt = this.debtors(), balances = ledger(s.lastExp), bl = balances[m.k] || 0;
+        const payeeKey = Object.keys(balances).filter(k => k !== 'sofia').reduce((a, k) => balances[k] > balances[a] ? k : a, 'maya');
+        if (m.k === 'sofia') { on = !s.morph && !!s.paid.sofia; text = 'Paid'; }
+        else if (debt.includes(m.k)) { on = !s.morph && this.paidAt(m.k); text = 'Paid'; }
+        else {
+          on = !s.morph;
+          const received = s.allDone || (s.paid.sofia && m.k === payeeKey);
+          text = bl > 0.005 ? (received ? 'Settled' : 'Owed') : 'Even';
+        }
+      }
       const skip = m.k === 'sofia' && (s.phase === 'vote' || s.pollLinger) && poll && poll.skipped && poll.submitted == null;
       if (skip) { on = true; text = 'Skipped'; }
       if (pending) { on = true; text = 'Added'; }
-      return { ...m, filter: pending ? 'grayscale(1) opacity(.45)' : skip ? 'opacity(.45)' : 'none', nameFg: pending || skip ? 'var(--tu-color-text-3)' : 'var(--tu-color-text)', nameW: m.k === 'sofia' ? '600' : '400', badgeFg: pending || skip ? 'var(--tu-color-text-2)' : (text === 'Paid' || text === 'Voted') ? 'var(--tu-done-accent)' : 'var(--tu-color-text-2)', badgeSh: pending ? 'var(--tu-ring)' : 'none', badge: text, badgeO: on ? 1 : 0, badgeTf: on ? 'translateX(-50%) scale(1)' : 'translateX(-50%) scale(0.4)', ...(() => { return { chkO: 0, chkSc: 0.4 }; })() };
+      return { ...m, filter: pending ? 'grayscale(1) opacity(.45)' : skip ? 'opacity(.45)' : 'none', nameFg: pending || skip ? 'var(--tu-color-text-3)' : 'var(--tu-color-text)', nameW: m.k === 'sofia' ? '600' : '400', badgeFg: pending || skip ? 'var(--tu-color-text-2)' : (text === 'Paid' || text === 'Voted' || text === 'Settled') ? 'var(--tu-done-accent)' : 'var(--tu-color-text-2)', badgeSh: pending ? 'var(--tu-ring)' : 'none', badge: text, badgeO: on ? 1 : 0, badgeTf: on ? 'translateX(-50%) scale(1)' : 'translateX(-50%) scale(0.4)', ...(() => { return { chkO: 0, chkSc: 0.4 }; })() };
     });
     const showResults = poll && (poll.submitted != null || poll.skipped) && !poll.editing;
     let pollOpts = [];
